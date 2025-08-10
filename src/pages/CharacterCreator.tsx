@@ -8,7 +8,6 @@ import {
   DialogTitle, 
   DialogContent, 
   DialogActions,
-  Grid,
   Card,
   CardMedia,
   CardContent,
@@ -121,9 +120,9 @@ const CharacterCreator: React.FC = () => {
       )}
 
       {/* Character Grid */}
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
         {characters.map((character) => (
-          <Grid item xs={12} sm={6} md={4} key={character.id}>
+          <Box key={character.id}>
             <Card>
               <CardMedia
                 component="img"
@@ -150,9 +149,9 @@ const CharacterCreator: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
 
       {characters.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>

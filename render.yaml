@@ -1,9 +1,10 @@
 services:
   - type: web
-    name: content-creation-api
+    name: content-creation-app
     env: node
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+    healthCheckPath: /health

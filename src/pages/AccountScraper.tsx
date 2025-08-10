@@ -5,7 +5,6 @@ import {
   Button,
   TextField,
   Paper,
-  Grid,
   Card,
   CardContent,
   IconButton,
@@ -161,8 +160,8 @@ const AccountScraper: React.FC = () => {
           New Scraping Session
         </Typography>
         
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+          <Box>
             <TextField
               fullWidth
               label="Session Name"
@@ -171,9 +170,9 @@ const AccountScraper: React.FC = () => {
               placeholder="e.g., Crypto Influencer Analysis"
               helperText="Give your scraping session a descriptive name"
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} md={6}>
+          <Box>
             <TextField
               fullWidth
               label="Max Videos to Scrape"
@@ -183,9 +182,9 @@ const AccountScraper: React.FC = () => {
               inputProps={{ min: 1, max: 100 }}
               helperText="Number of videos to scrape per account (1-100)"
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12}>
+          <Box sx={{ gridColumn: { xs: '1', md: '1 / -1' } }}>
             <TextField
               fullWidth
               label="Account Names"
@@ -196,8 +195,8 @@ const AccountScraper: React.FC = () => {
               multiline
               rows={3}
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
 
         <Box sx={{ mt: 3 }}>
           <Button
@@ -227,9 +226,9 @@ const AccountScraper: React.FC = () => {
           </Typography>
         </Paper>
       ) : (
-        <Grid container spacing={3}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
           {sessions.map((session) => (
-            <Grid item xs={12} md={6} key={session.id}>
+            <Box key={session.id}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -287,9 +286,9 @@ const AccountScraper: React.FC = () => {
                   )}
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       )}
     </Box>
   );

@@ -3,12 +3,29 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Check if dist folder exists, if not build the app
+const distPath = path.join(__dirname, 'dist');
+try {
+  await fs.access(distPath);
+  console.log('Dist folder found, serving existing build');
+} catch (error) {
+  console.log('Dist folder not found, building React app...');
+  try {
+    execSync('npm run build', { stdio: 'inherit' });
+    console.log('React app built successfully');
+  } catch (buildError) {
+    console.error('Failed to build React app:', buildError);
+    process.exit(1);
+  }
+}
 
 // Middleware
 app.use(cors());

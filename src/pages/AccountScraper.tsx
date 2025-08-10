@@ -10,14 +10,16 @@ import {
   IconButton,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  LinearProgress,
+  Chip
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import { useAuth } from '../contexts/AuthContext';
-import type { ScrapingSession } from '../utils/storage';
-import { loadScrapingSessions, saveScrapingSessions } from '../utils/storage';
+import type { ScrapingSession } from '../services/n8nService';
+import n8nService from '../services/n8nService';
 
 const AccountScraper: React.FC = () => {
   const { user } = useAuth();
@@ -31,19 +33,25 @@ const AccountScraper: React.FC = () => {
   const [maxVideos, setMaxVideos] = useState('10');
   const [sessionName, setSessionName] = useState('');
 
-  // Load existing sessions
+  // Load existing sessions from localStorage (temporary until we have a proper backend)
   useEffect(() => {
     if (!user) return;
     
-    const savedSessions = loadScrapingSessions(user.id);
-    setSessions(savedSessions);
+    const savedSessions = localStorage.getItem(`scraping_sessions_${user.id}`);
+    if (savedSessions) {
+      try {
+        setSessions(JSON.parse(savedSessions));
+      } catch (error) {
+        console.error('Failed to parse saved sessions:', error);
+      }
+    }
   }, [user]);
 
   // Save sessions when they change
   useEffect(() => {
     if (!user) return;
     
-    saveScrapingSessions(user.id, sessions);
+    localStorage.setItem(`scraping_sessions_${user.id}`, JSON.stringify(sessions));
   }, [sessions, user]);
 
   const handleStartScraping = async () => {
@@ -57,53 +65,119 @@ const AccountScraper: React.FC = () => {
     setSuccess('');
 
     try {
-      // Simulate scraping process (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
       const accountList = accountNames.split(',').map(account => account.trim()).filter(account => account);
       
+      // Create a new session with pending status
       const newSession: ScrapingSession = {
         id: Date.now().toString(),
         name: sessionName.trim(),
         type: 'account',
-        data: [
-          // Mock scraped data - replace with actual scraped content
-          {
-            id: '1',
-            account: accountList[0],
-            videoUrl: 'https://example.com/video1.mp4',
-            transcript: 'Sample transcript for video 1 from account',
-            caption: 'Sample caption for video 1 from account',
-            views: 1500,
-            likes: 150,
-            followers: 10000
-          },
-          {
-            id: '2', 
-            account: accountList[0],
-            videoUrl: 'https://example.com/video2.mp4',
-            transcript: 'Sample transcript for video 2 from account',
-            caption: 'Sample caption for video 2 from account',
-            views: 2500,
-            likes: 250,
-            followers: 10000
-          }
-        ],
-        dateCreated: new Date().toISOString()
+        data: [],
+        dateCreated: new Date().toISOString(),
+        status: 'pending'
       };
 
+      // Add the session immediately to show progress
       setSessions(prev => [...prev, newSession]);
-      setSuccess(`Successfully scraped ${newSession.data.length} videos from accounts: ${accountList.join(', ')}`);
+
+      // Trigger the n8n workflow
+      const result = await n8nService.triggerAccountScraping({
+        sessionName: sessionName.trim(),
+        accountNames: accountList,
+        maxVideos: parseInt(maxVideos),
+        userId: user!.id
+      });
+
+      // Update session with execution ID and status
+      setSessions(prev => prev.map(session => 
+        session.id === newSession.id 
+          ? { ...session, status: 'in_progress', n8nExecutionId: result.executionId }
+          : session
+      ));
+
+      setSuccess(`Scraping started! Execution ID: ${result.executionId}. Results will appear here when complete.`);
       
       // Reset form
       setAccountNames('');
       setMaxVideos('10');
       setSessionName('');
+
+      // Start polling for results
+      pollForResults(newSession.id, result.executionId);
     } catch (err) {
-      setError('Failed to scrape videos. Please try again.');
+      setError('Failed to start scraping process. Please try again.');
+      console.error('Scraping error:', err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Poll for results from n8n
+  const pollForResults = async (sessionId: string, executionId: string) => {
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setSessions(prev => prev.map(session => 
+          session.id === sessionId 
+            ? { ...session, status: 'failed' }
+            : session
+        ));
+        return;
+      }
+
+      try {
+        // Check if we have results from the callback
+        const results = await n8nService.getScrapingResults(sessionId);
+        
+        if (results.length > 0) {
+          // Update session with results
+          setSessions(prev => prev.map(session => 
+            session.id === sessionId 
+              ? { ...session, data: results, status: 'completed' }
+              : session
+          ));
+          setSuccess(`Scraping completed! Found ${results.length} videos.`);
+          return;
+        }
+
+        // Check n8n execution status
+        const status = await n8nService.checkScrapingStatus(executionId);
+        
+        if (status.status === 'completed') {
+          // Try to get results again
+          const finalResults = await n8nService.getScrapingResults(sessionId);
+          if (finalResults.length > 0) {
+            setSessions(prev => prev.map(session => 
+              session.id === sessionId 
+                ? { ...session, data: finalResults, status: 'completed' }
+                : session
+            ));
+            setSuccess(`Scraping completed! Found ${finalResults.length} videos.`);
+            return;
+          }
+        } else if (status.status === 'failed') {
+          setSessions(prev => prev.map(session => 
+            session.id === sessionId 
+              ? { ...session, status: 'failed' }
+              : session
+          ));
+          setError('Scraping failed. Please try again.');
+          return;
+        }
+
+        // Continue polling
+        attempts++;
+        setTimeout(poll, 5000); // Poll every 5 seconds
+      } catch (error) {
+        console.error('Polling error:', error);
+        attempts++;
+        setTimeout(poll, 5000);
+      }
+    };
+
+    poll();
   };
 
   const handleDeleteSession = (sessionId: string) => {
@@ -239,9 +313,28 @@ const AccountScraper: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Created: {new Date(session.dateCreated).toLocaleDateString()}
                       </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Chip 
+                          label={session.status === 'pending' ? 'Pending' : 
+                                 session.status === 'in_progress' ? 'In Progress' :
+                                 session.status === 'completed' ? 'Completed' :
+                                 session.status === 'failed' ? 'Failed' : 'Unknown'}
+                          color={session.status === 'pending' ? 'default' :
+                                 session.status === 'in_progress' ? 'primary' :
+                                 session.status === 'completed' ? 'success' :
+                                 session.status === 'failed' ? 'error' : 'default'}
+                          size="small"
+                        />
+                        {session.status === 'in_progress' && <CircularProgress size={16} />}
+                      </Box>
                       <Typography variant="body2" color="text.secondary">
                         Videos scraped: {session.data.length}
                       </Typography>
+                      {session.n8nExecutionId && (
+                        <Typography variant="caption" color="text.secondary">
+                          Execution ID: {session.n8nExecutionId}
+                        </Typography>
+                      )}
                     </Box>
                     <Box>
                       <IconButton
@@ -264,9 +357,20 @@ const AccountScraper: React.FC = () => {
 
                   <Divider sx={{ my: 2 }} />
 
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Sample videos:
-                  </Typography>
+                  {session.status === 'in_progress' && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Scraping in progress...
+                      </Typography>
+                      <LinearProgress />
+                    </Box>
+                  )}
+
+                  {session.status === 'completed' && session.data.length > 0 && (
+                    <>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Sample videos:
+                      </Typography>
                   
                   {session.data.slice(0, 3).map((video: any) => (
                     <Box key={video.id} sx={{ mb: 1, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
@@ -282,6 +386,14 @@ const AccountScraper: React.FC = () => {
                   {session.data.length > 3 && (
                     <Typography variant="caption" color="text.secondary">
                       +{session.data.length - 3} more videos
+                    </Typography>
+                  )}
+                </>
+                  )}
+
+                  {session.status === 'failed' && (
+                    <Typography variant="body2" color="error" gutterBottom>
+                      Scraping failed. Please try again.
                     </Typography>
                   )}
                 </CardContent>

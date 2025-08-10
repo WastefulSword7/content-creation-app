@@ -50,27 +50,52 @@ app.post('/api/scraping-results', (req, res) => {
   console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
-    // Store the scraping results
-    const sessionId = `session_${Date.now()}`;
+    // Extract session info from the request
+    const { sessionName, accountNames, maxVideos, userId, results } = req.body;
+    
+    // Create a session ID based on the request data
+    const sessionId = `session_${userId}_${Date.now()}`;
+    
+    // Process the results - handle both array and object formats
+    let processedResults = results;
+    if (Array.isArray(req.body)) {
+      // If the body is directly an array of results
+      processedResults = req.body;
+    } else if (results && Array.isArray(results)) {
+      // If results are nested in the body
+      processedResults = results;
+    } else {
+      // Fallback: treat the entire body as results
+      processedResults = [req.body];
+    }
+    
     const sessionData = {
       id: sessionId,
+      name: sessionName || `Scraping Session ${new Date().toLocaleString()}`,
+      type: 'account',
+      userId: userId || 'unknown',
       timestamp: new Date().toISOString(),
-      results: req.body,
-      totalVideos: req.body.length,
-      status: 'completed'
+      results: processedResults,
+      totalVideos: processedResults.length,
+      status: 'completed',
+      metadata: {
+        accountNames: accountNames || [],
+        maxVideos: maxVideos || processedResults.length
+      }
     };
     
     scrapingSessions.push(sessionData);
-    scrapingResults = [...scrapingResults, ...req.body];
+    scrapingResults = [...scrapingResults, ...processedResults];
     
-    console.log(`Stored ${req.body.length} videos in session ${sessionId}`);
+    console.log(`Stored ${processedResults.length} videos in session ${sessionId}`);
+    console.log('Session data:', JSON.stringify(sessionData, null, 2));
     
     // Send immediate response to prevent hanging
     res.status(200).json({
       success: true,
       message: 'Scraping results received successfully',
       sessionId: sessionId,
-      totalVideos: req.body.length,
+      totalVideos: processedResults.length,
       timestamp: new Date().toISOString()
     });
     
@@ -101,6 +126,19 @@ app.get('/api/scraping-sessions/:sessionId', (req, res) => {
       success: true,
       session: session
     });
+  } else {
+    res.status(404).json({
+      success: false,
+      message: 'Session not found'
+    });
+  }
+});
+
+// API endpoint to get results by session ID
+app.get('/api/results/:sessionId', (req, res) => {
+  const session = scrapingSessions.find(s => s.id === req.params.sessionId);
+  if (session) {
+    res.json(session.results);
   } else {
     res.status(404).json({
       success: false,

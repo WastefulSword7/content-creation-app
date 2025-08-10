@@ -32,10 +32,10 @@ class N8nService {
 
   constructor() {
     // Your n8n webhook URL - you'll need to set this up
-    this.webhookUrl = process.env.REACT_APP_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/account-scraper';
+    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/account-scraper';
     
     // Your Render app URL for receiving results
-    this.baseUrl = process.env.REACT_APP_API_URL || 'https://content-creation-app-vtio.onrender.com';
+    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   }
 
   /**

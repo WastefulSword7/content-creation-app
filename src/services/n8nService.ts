@@ -32,18 +32,18 @@ class N8nService {
 
   constructor() {
     // Your n8n webhook URL - you'll need to set this up
-    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/account-scraper';
+    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
     
     // Your Render app URL for receiving results
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    this.baseUrl = import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com';
   }
 
   /**
-   * Trigger the account scraping workflow via our backend
+   * Trigger the account scraping workflow in n8n
    */
   async triggerAccountScraping(request: ScrapingRequest): Promise<{ executionId: string; status: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/trigger-scraping`, {
+      const response = await fetch(this.webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +52,9 @@ class N8nService {
           sessionName: request.sessionName,
           accountNames: request.accountNames,
           maxVideos: request.maxVideos,
-          userId: request.userId
+          userId: request.userId,
+          callbackUrl: `${this.baseUrl}/api/scraping-results`,
+          timestamp: new Date().toISOString()
         }),
       });
 
@@ -62,11 +64,11 @@ class N8nService {
 
       const result = await response.json();
       return {
-        executionId: result.executionId || result.sessionId || Date.now().toString(),
-        status: result.status || 'triggered'
+        executionId: result.executionId || Date.now().toString(),
+        status: 'triggered'
       };
     } catch (error) {
-      console.error('Failed to trigger scraping workflow:', error);
+      console.error('Failed to trigger n8n workflow:', error);
       throw new Error('Failed to start scraping process');
     }
   }

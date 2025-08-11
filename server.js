@@ -161,15 +161,20 @@ app.get('/api/results', (req, res) => {
 app.post('/api/n8n-proxy', async (req, res) => {
   try {
     console.log('=== N8N PROXY REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     console.log('Forwarding request to n8n webhook...');
     
     const n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
+    console.log('Target URL:', n8nWebhookUrl);
     
     const response = await axios.post(n8nWebhookUrl, req.body, {
       headers: {
         'Content-Type': 'application/json',
       },
     });
+    
+    console.log('n8n response status:', response.status);
+    console.log('n8n response data:', response.data);
     
     if (response.status !== 200) {
       throw new Error(`n8n responded with status: ${response.status}`);
@@ -186,11 +191,16 @@ app.post('/api/n8n-proxy', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in n8n proxy:', error);
+    console.error('=== N8N PROXY ERROR ===');
+    console.error('Error details:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to forward request to n8n',
-      error: error.message
+      error: error.message,
+      details: error.toString()
     });
   }
 });
@@ -210,6 +220,15 @@ app.get('/health', (req, res) => {
 app.get('/test', (req, res) => {
   res.json({ 
     message: 'Server is running!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test n8n proxy endpoint
+app.get('/api/n8n-proxy-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'n8n proxy endpoint is accessible',
     timestamp: new Date().toISOString()
   });
 });

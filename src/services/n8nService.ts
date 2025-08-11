@@ -34,9 +34,9 @@ class N8nService {
   private hashtagWebhookUrl: string;
 
   constructor() {
-    // Use production webhook URLs instead of test mode
-    this.accountWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/account-scraper';
-    this.hashtagWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/hashtag-scraper';
+    // Use the backend proxy endpoint to avoid CORS issues
+    this.accountWebhookUrl = `${import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com'}/api/n8n-proxy`;
+    this.hashtagWebhookUrl = `${import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com'}/api/n8n-proxy`;
     
     // Your Render app URL for receiving results
     this.baseUrl = import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com';

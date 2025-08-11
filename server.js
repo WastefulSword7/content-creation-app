@@ -188,11 +188,11 @@ app.post('/api/n8n-proxy', async (req, res) => {
     // Determine which webhook to use based on request type
     let n8nWebhookUrl;
     if (req.body.hashtags) {
-      n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/hashtag-scraper';
-      console.log('Using hashtag scraper webhook');
+      n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook-test/hashtag-scraper';
+      console.log('Using hashtag scraper test webhook');
     } else {
       n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/account-scraper';
-      console.log('Using account scraper webhook');
+      console.log('Using account scraper production webhook');
     }
     
     console.log('Target URL:', n8nWebhookUrl);

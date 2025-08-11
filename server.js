@@ -158,6 +158,7 @@ app.get('/api/results', (req, res) => {
 });
 
 // Proxy endpoint to forward requests to n8n (solves CORS issue)
+// Last updated: 2025-01-27 - Added detailed error logging
 app.post('/api/n8n-proxy', async (req, res) => {
   try {
     console.log('=== N8N PROXY REQUEST ===');

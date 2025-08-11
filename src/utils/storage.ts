@@ -13,6 +13,8 @@ export interface ScrapingSession {
   type: 'hashtag' | 'account';
   data: any[];
   dateCreated: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  n8nExecutionId?: string;
 }
 
 export interface GeneratedVideo {
@@ -50,7 +52,16 @@ export const saveCharacters = (userId: string, characters: Character[]): void =>
 export const loadScrapingSessions = (userId: string): ScrapingSession[] => {
   try {
     const saved = localStorage.getItem(getStorageKey(userId, 'scraping_sessions'));
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    
+    const sessions = JSON.parse(saved);
+    
+    // Migrate existing sessions to include status field
+    return sessions.map((session: any) => ({
+      ...session,
+      status: session.status || 'completed', // Default to completed for existing sessions
+      n8nExecutionId: session.n8nExecutionId || undefined
+    }));
   } catch (err) {
     console.error('Failed to load scraping sessions:', err);
     return [];

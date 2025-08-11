@@ -185,7 +185,16 @@ app.post('/api/n8n-proxy', async (req, res) => {
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     console.log('Forwarding request to n8n webhook...');
     
-    const n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
+    // Determine which webhook to use based on request type
+    let n8nWebhookUrl;
+    if (req.body.hashtags) {
+      n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/hashtag-scraper';
+      console.log('Using hashtag scraper webhook');
+    } else {
+      n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/account-scraper';
+      console.log('Using account scraper webhook');
+    }
+    
     console.log('Target URL:', n8nWebhookUrl);
     
     const response = await axios.post(n8nWebhookUrl, req.body, {

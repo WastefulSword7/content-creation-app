@@ -1,8 +1,10 @@
 export interface ScrapingRequest {
   sessionName: string;
-  accountNames: string[];
+  accountNames?: string[];
+  hashtags?: string[];
   maxVideos: number;
   userId: string;
+  type: 'account' | 'hashtag';
 }
 
 export interface ScrapingResult {
@@ -28,11 +30,13 @@ export interface ScrapingSession {
 
 class N8nService {
   private baseUrl: string;
-  private webhookUrl: string;
+  private accountWebhookUrl: string;
+  private hashtagWebhookUrl: string;
 
   constructor() {
-    // Use the backend proxy endpoint to avoid CORS issues
-    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || `${import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com'}/api/n8n-proxy`;
+    // Use production webhook URLs instead of test mode
+    this.accountWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/account-scraper';
+    this.hashtagWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook/hashtag-scraper';
     
     // Your Render app URL for receiving results
     this.baseUrl = import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com';
@@ -43,7 +47,7 @@ class N8nService {
    */
   async triggerAccountScraping(request: ScrapingRequest): Promise<{ executionId: string; status: string }> {
     try {
-      const response = await fetch(this.webhookUrl, {
+      const response = await fetch(this.accountWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,11 +78,46 @@ class N8nService {
   }
 
   /**
+   * Trigger the hashtag scraping workflow in n8n
+   */
+  async triggerHashtagScraping(request: ScrapingRequest): Promise<{ executionId: string; status: string }> {
+    try {
+      const response = await fetch(this.hashtagWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionName: request.sessionName,
+          hashtags: request.hashtags,
+          maxVideos: request.maxVideos,
+          userId: request.userId,
+          callbackUrl: `${this.baseUrl}/api/scraping-results`,
+          timestamp: new Date().toISOString()
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        executionId: result.executionId || Date.now().toString(),
+        status: 'triggered'
+      };
+    } catch (error) {
+      console.error('Failed to trigger n8n workflow:', error);
+      throw new Error('Failed to start scraping process');
+    }
+  }
+
+  /**
    * Check the status of a scraping execution
    */
   async checkScrapingStatus(executionId: string): Promise<{ status: string; progress?: number }> {
     try {
-      const response = await fetch(`${this.webhookUrl}/status/${executionId}`, {
+      const response = await fetch(`${this.baseUrl}/api/n8n-proxy/status/${executionId}`, {
         method: 'GET',
       });
 

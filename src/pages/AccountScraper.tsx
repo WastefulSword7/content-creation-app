@@ -96,7 +96,8 @@ const AccountScraper: React.FC = () => {
         sessionName: sessionName.trim(),
         accountNames: accountList,
         maxVideos: parseInt(maxVideos),
-        userId: user!.id
+        userId: user!.id,
+        type: 'account'
       });
 
       console.log('n8n workflow triggered successfully:', result);

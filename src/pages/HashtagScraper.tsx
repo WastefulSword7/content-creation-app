@@ -18,6 +18,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { useAuth } from '../contexts/AuthContext';
 import type { ScrapingSession } from '../utils/storage';
 import { loadScrapingSessions, saveScrapingSessions } from '../utils/storage';
+import n8nService from '../services/n8nService';
 
 const HashtagScraper: React.FC = () => {
   const { user } = useAuth();
@@ -57,51 +58,136 @@ const HashtagScraper: React.FC = () => {
     setSuccess('');
 
     try {
-      // Simulate scraping process (replace with actual API call)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
       const hashtagList = hashtags.split(',').map(tag => tag.trim()).filter(tag => tag);
       
+      // Create a new session with pending status
       const newSession: ScrapingSession = {
-        id: Date.now().toString(),
+        id: `session_${user!.id}_${sessionName.trim().replace(/[^a-zA-Z0-9]/g, '_')}`,
         name: sessionName.trim(),
         type: 'hashtag',
-        data: [
-          // Mock scraped data - replace with actual scraped content
-          {
-            id: '1',
-            hashtag: hashtagList[0],
-            videoUrl: 'https://example.com/video1.mp4',
-            transcript: 'Sample transcript for video 1',
-            caption: 'Sample caption for video 1',
-            views: 1000,
-            likes: 100
-          },
-          {
-            id: '2', 
-            hashtag: hashtagList[0],
-            videoUrl: 'https://example.com/video2.mp4',
-            transcript: 'Sample transcript for video 2',
-            caption: 'Sample caption for video 2',
-            views: 2000,
-            likes: 200
-          }
-        ],
-        dateCreated: new Date().toISOString()
+        data: [],
+        dateCreated: new Date().toISOString(),
+        status: 'pending'
       };
 
+      // Add the session immediately to show progress
       setSessions(prev => [...prev, newSession]);
-      setSuccess(`Successfully scraped ${newSession.data.length} videos for hashtags: ${hashtagList.join(', ')}`);
+
+      // Trigger the n8n workflow
+      console.log('Triggering n8n hashtag workflow with:', {
+        sessionName: sessionName.trim(),
+        hashtags: hashtagList,
+        maxVideos: parseInt(maxVideos),
+        userId: user!.id
+      });
+      
+      const result = await n8nService.triggerHashtagScraping({
+        sessionName: sessionName.trim(),
+        hashtags: hashtagList,
+        maxVideos: parseInt(maxVideos),
+        userId: user!.id,
+        type: 'hashtag'
+      });
+
+      console.log('n8n hashtag workflow triggered successfully:', result);
+
+      // Update session with execution ID and status
+      setSessions(prev => prev.map(session => 
+        session.id === newSession.id 
+          ? { ...session, status: 'in_progress', n8nExecutionId: result.executionId }
+          : session
+      ));
+
+      setSuccess(`Hashtag scraping started! Execution ID: ${result.executionId}. Results will appear here when complete.`);
       
       // Reset form
       setHashtags('');
       setMaxVideos('10');
       setSessionName('');
+
+      // Start polling for results
+      pollForResults(newSession.id, result.executionId);
     } catch (err) {
-      setError('Failed to scrape videos. Please try again.');
+      console.error('Hashtag scraping error:', err);
+      setError('Failed to start scraping process. Please try again.');
+      setSessions(prev => prev.filter(session => session.status === 'pending')); // Remove failed session
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Poll for results from n8n
+  const pollForResults = async (sessionId: string, executionId: string) => {
+    console.log(`Starting to poll for results. Session ID: ${sessionId}, Execution ID: ${executionId}`);
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
+
+    const poll = async () => {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts} for session ${sessionId}`);
+      
+      if (attempts >= maxAttempts) {
+        console.log(`Max polling attempts reached for session ${sessionId}`);
+        setSessions(prev => prev.map(session => 
+          session.id === sessionId 
+            ? { ...session, status: 'failed' }
+            : session
+        ));
+        setError('Scraping timed out after 5 minutes. Please try again.');
+        return;
+      }
+
+      try {
+        // Check if we have results from the callback
+        console.log(`Checking for results with session ID: ${sessionId}`);
+        const results = await n8nService.getScrapingResults(sessionId);
+        console.log(`Results check returned:`, results);
+        
+        if (results && results.length > 0) {
+          console.log(`Found ${results.length} results for session ${sessionId}`);
+          // Update session with results
+          setSessions(prev => prev.map(session => 
+            session.id === sessionId 
+              ? { ...session, data: results, status: 'completed' }
+              : session
+          ));
+          setSuccess(`Hashtag scraping completed! Found ${results.length} videos.`);
+          return;
+        }
+
+        // Check n8n execution status
+        console.log(`Checking n8n execution status for: ${executionId}`);
+        const status = await n8nService.checkScrapingStatus(executionId);
+        console.log(`n8n status check returned:`, status);
+        
+        if (status.status === 'completed') {
+          console.log(`n8n execution completed, checking for final results`);
+          // Try to get results again
+          const finalResults = await n8nService.getScrapingResults(sessionId);
+          if (finalResults && finalResults.length > 0) {
+            console.log(`Found ${finalResults.length} final results for session ${sessionId}`);
+            setSessions(prev => prev.map(session => 
+              session.id === sessionId 
+                ? { ...session, data: finalResults, status: 'completed' }
+                : session
+            ));
+            setSuccess(`Hashtag scraping completed! Found ${finalResults.length} videos.`);
+            return;
+          }
+        }
+        
+        // Continue polling
+        attempts++;
+        setTimeout(poll, 5000); // Poll every 5 seconds
+        
+      } catch (error) {
+        console.error(`Error during polling for session ${sessionId}:`, error);
+        attempts++;
+        setTimeout(poll, 5000); // Continue polling even on error
+      }
+    };
+
+    // Start polling
+    poll();
   };
 
   const handleDeleteSession = (sessionId: string) => {

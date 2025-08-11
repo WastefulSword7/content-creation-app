@@ -68,8 +68,10 @@ const AccountScraper: React.FC = () => {
       const accountList = accountNames.split(',').map(account => account.trim()).filter(account => account);
       
       // Create a new session with pending status
+      // Use the same ID format that the backend will use
+      const sessionId = `session_${user!.id}_${sessionName.trim().replace(/[^a-zA-Z0-9]/g, '_')}`;
       const newSession: ScrapingSession = {
-        id: Date.now().toString(),
+        id: sessionId,
         name: sessionName.trim(),
         type: 'account',
         data: [],

@@ -54,8 +54,9 @@ app.post('/api/scraping-results', (req, res) => {
     // Extract session info from the request
     const { sessionName, accountNames, maxVideos, userId, results } = req.body;
     
-    // Create a session ID based on the request data
-    const sessionId = `session_${userId}_${Date.now()}`;
+    // Create a session ID that matches what the frontend expects
+    // Use the sessionName and userId to create a predictable ID
+    const sessionId = `session_${userId || 'unknown'}_${sessionName?.replace(/[^a-zA-Z0-9]/g, '_') || 'default'}`;
     
     // Process the results - handle both array and object formats
     let processedResults = results;
@@ -85,7 +86,16 @@ app.post('/api/scraping-results', (req, res) => {
       }
     };
     
-    scrapingSessions.push(sessionData);
+    // Check if session already exists and update it, otherwise create new
+    const existingSessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
+    if (existingSessionIndex >= 0) {
+      scrapingSessions[existingSessionIndex] = sessionData;
+      console.log(`Updated existing session ${sessionId}`);
+    } else {
+      scrapingSessions.push(sessionData);
+      console.log(`Created new session ${sessionId}`);
+    }
+    
     scrapingResults = [...scrapingResults, ...processedResults];
     
     console.log(`Stored ${processedResults.length} videos in session ${sessionId}`);

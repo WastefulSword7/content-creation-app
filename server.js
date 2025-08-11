@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,19 +165,17 @@ app.post('/api/n8n-proxy', async (req, res) => {
     
     const n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
     
-    const response = await fetch(n8nWebhookUrl, {
-      method: 'POST',
+    const response = await axios.post(n8nWebhookUrl, req.body, {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(req.body),
     });
     
-    if (!response.ok) {
+    if (response.status !== 200) {
       throw new Error(`n8n responded with status: ${response.status}`);
     }
     
-    const result = await response.json();
+    const result = response.data;
     console.log('n8n response:', result);
     
     res.json({

@@ -11,6 +11,7 @@ import HashtagScraper from './pages/HashtagScraper';
 import AccountScraper from './pages/AccountScraper';
 import ContentCreation from './pages/ContentCreation';
 import VideoLibrary from './pages/VideoLibrary';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const theme = createTheme({
   palette: {
@@ -79,7 +80,11 @@ const AppContent: React.FC = () => {
         <Routes>
           <Route path="/" element={<CharacterCreator />} />
           <Route path="/hashtag-scraper" element={<HashtagScraper />} />
-          <Route path="/account-scraper" element={<AccountScraper />} />
+          <Route path="/account-scraper" element={
+            <ErrorBoundary>
+              <AccountScraper />
+            </ErrorBoundary>
+          } />
           <Route path="/content-creation" element={<ContentCreation />} />
           <Route path="/video-library" element={<VideoLibrary />} />
         </Routes>

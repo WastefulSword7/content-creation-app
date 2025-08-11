@@ -70,6 +70,8 @@ const AccountScraper: React.FC = () => {
       // Create a new session with pending status
       // Use the same ID format that the backend will use
       const sessionId = `session_${user!.id}_${sessionName.trim().replace(/[^a-zA-Z0-9]/g, '_')}`;
+      console.log('Creating session with ID:', sessionId);
+      
       const newSession: ScrapingSession = {
         id: sessionId,
         name: sessionName.trim(),
@@ -83,12 +85,21 @@ const AccountScraper: React.FC = () => {
       setSessions(prev => [...prev, newSession]);
 
       // Trigger the n8n workflow
+      console.log('Triggering n8n workflow with:', {
+        sessionName: sessionName.trim(),
+        accountNames: accountList,
+        maxVideos: parseInt(maxVideos),
+        userId: user!.id
+      });
+      
       const result = await n8nService.triggerAccountScraping({
         sessionName: sessionName.trim(),
         accountNames: accountList,
         maxVideos: parseInt(maxVideos),
         userId: user!.id
       });
+
+      console.log('n8n workflow triggered successfully:', result);
 
       // Update session with execution ID and status
       setSessions(prev => prev.map(session => 
@@ -107,8 +118,9 @@ const AccountScraper: React.FC = () => {
       // Start polling for results
       pollForResults(newSession.id, result.executionId);
     } catch (err) {
-      setError('Failed to start scraping process. Please try again.');
       console.error('Scraping error:', err);
+      setError('Failed to start scraping process. Please try again.');
+      setSessions(prev => prev.filter(session => session.status === 'pending')); // Remove failed session
     } finally {
       setIsLoading(false);
     }
@@ -116,24 +128,32 @@ const AccountScraper: React.FC = () => {
 
   // Poll for results from n8n
   const pollForResults = async (sessionId: string, executionId: string) => {
+    console.log(`Starting to poll for results. Session ID: ${sessionId}, Execution ID: ${executionId}`);
     const maxAttempts = 60; // 5 minutes with 5-second intervals
     let attempts = 0;
 
     const poll = async () => {
+      console.log(`Polling attempt ${attempts + 1}/${maxAttempts} for session ${sessionId}`);
+      
       if (attempts >= maxAttempts) {
+        console.log(`Max polling attempts reached for session ${sessionId}`);
         setSessions(prev => prev.map(session => 
           session.id === sessionId 
             ? { ...session, status: 'failed' }
             : session
         ));
+        setError('Scraping timed out after 5 minutes. Please try again.');
         return;
       }
 
       try {
         // Check if we have results from the callback
+        console.log(`Checking for results with session ID: ${sessionId}`);
         const results = await n8nService.getScrapingResults(sessionId);
+        console.log(`Results check returned:`, results);
         
-        if (results.length > 0) {
+        if (results && results.length > 0) {
+          console.log(`Found ${results.length} results for session ${sessionId}`);
           // Update session with results
           setSessions(prev => prev.map(session => 
             session.id === sessionId 
@@ -145,12 +165,16 @@ const AccountScraper: React.FC = () => {
         }
 
         // Check n8n execution status
+        console.log(`Checking n8n execution status for: ${executionId}`);
         const status = await n8nService.checkScrapingStatus(executionId);
+        console.log(`n8n status check returned:`, status);
         
         if (status.status === 'completed') {
+          console.log(`n8n execution completed, checking for final results`);
           // Try to get results again
           const finalResults = await n8nService.getScrapingResults(sessionId);
-          if (finalResults.length > 0) {
+          if (finalResults && finalResults.length > 0) {
+            console.log(`Found ${finalResults.length} final results for session ${sessionId}`);
             setSessions(prev => prev.map(session => 
               session.id === sessionId 
                 ? { ...session, data: finalResults, status: 'completed' }
@@ -160,6 +184,7 @@ const AccountScraper: React.FC = () => {
             return;
           }
         } else if (status.status === 'failed') {
+          console.log(`n8n execution failed for session ${sessionId}`);
           setSessions(prev => prev.map(session => 
             session.id === sessionId 
               ? { ...session, status: 'failed' }
@@ -171,10 +196,12 @@ const AccountScraper: React.FC = () => {
 
         // Continue polling
         attempts++;
+        console.log(`No results yet, continuing to poll in 5 seconds. Attempt ${attempts}/${maxAttempts}`);
         setTimeout(poll, 5000); // Poll every 5 seconds
       } catch (error) {
-        console.error('Polling error:', error);
+        console.error(`Polling error for session ${sessionId}:`, error);
         attempts++;
+        // Don't stop polling on error, just continue
         setTimeout(poll, 5000);
       }
     };

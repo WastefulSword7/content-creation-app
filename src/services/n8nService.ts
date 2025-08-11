@@ -31,9 +31,8 @@ class N8nService {
   private webhookUrl: string;
 
   constructor() {
-    // Your n8n webhook URL - you'll need to set this up
-    // Using CORS proxy temporarily to bypass cross-origin restrictions
-    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://cors-anywhere.herokuapp.com/https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
+    // Use the backend proxy endpoint to avoid CORS issues
+    this.webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || `${import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com'}/api/n8n-proxy`;
     
     // Your Render app URL for receiving results
     this.baseUrl = import.meta.env.VITE_API_URL || 'https://content-creation-app-vtio.onrender.com';

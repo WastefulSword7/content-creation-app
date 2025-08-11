@@ -4,7 +4,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,87 +42,6 @@ let scrapingSessions = [];
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
-});
-
-// API endpoint to trigger n8n workflow
-app.post('/api/trigger-scraping', async (req, res) => {
-  console.log('=== TRIGGERING SCRAPING WORKFLOW ===');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  
-  try {
-    const { sessionName, accountNames, maxVideos, userId } = req.body;
-    
-    // Validate required fields
-    if (!sessionName || !accountNames || !maxVideos || !userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: sessionName, accountNames, maxVideos, userId'
-      });
-    }
-    
-    // Create a unique session ID
-    const sessionId = `session_${userId}_${Date.now()}`;
-    
-    // Store the pending session
-    const pendingSession = {
-      id: sessionId,
-      name: sessionName,
-      type: 'account',
-      userId: userId,
-      timestamp: new Date().toISOString(),
-      results: [],
-      totalVideos: 0,
-      status: 'pending',
-      metadata: {
-        accountNames: Array.isArray(accountNames) ? accountNames : [accountNames],
-        maxVideos: parseInt(maxVideos)
-      }
-    };
-    
-    scrapingSessions.push(pendingSession);
-    
-    // Forward the request to your n8n workflow
-    // You'll need to update this URL to match your actual n8n webhook URL
-    const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/account-scraper';
-    
-    const n8nResponse = await axios.post(n8nWebhookUrl, {
-      sessionName,
-      accountNames: Array.isArray(accountNames) ? accountNames : [accountNames],
-      maxVideos: parseInt(maxVideos),
-      userId,
-      sessionId,
-      callbackUrl: `${req.protocol}://${req.get('host')}/api/scraping-results`,
-      timestamp: new Date().toISOString()
-    });
-    
-    const n8nResult = n8nResponse.data;
-    
-    // Update session status to in_progress
-    const sessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
-    if (sessionIndex !== -1) {
-      scrapingSessions[sessionIndex].status = 'in_progress';
-      scrapingSessions[sessionIndex].n8nExecutionId = n8nResult.executionId || Date.now().toString();
-    }
-    
-    console.log(`Scraping workflow triggered successfully for session ${sessionId}`);
-    
-    res.status(200).json({
-      success: true,
-      message: 'Scraping workflow triggered successfully',
-      sessionId: sessionId,
-      executionId: n8nResult.executionId || Date.now().toString(),
-      status: 'in_progress',
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('Error triggering scraping workflow:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to trigger scraping workflow',
-      error: error.message
-    });
-  }
 });
 
 // API endpoint to receive scraping results from n8n
@@ -236,6 +154,46 @@ app.get('/api/results', (req, res) => {
     results: scrapingResults,
     totalResults: scrapingResults.length
   });
+});
+
+// Proxy endpoint to forward requests to n8n (solves CORS issue)
+app.post('/api/n8n-proxy', async (req, res) => {
+  try {
+    console.log('=== N8N PROXY REQUEST ===');
+    console.log('Forwarding request to n8n webhook...');
+    
+    const n8nWebhookUrl = 'https://cartergerhardt.app.n8n.cloud/webhook-test/account-scraper';
+    
+    const response = await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`n8n responded with status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('n8n response:', result);
+    
+    res.json({
+      success: true,
+      message: 'Request forwarded to n8n successfully',
+      n8nResponse: result,
+      executionId: result.executionId || Date.now().toString()
+    });
+    
+  } catch (error) {
+    console.error('Error in n8n proxy:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to forward request to n8n',
+      error: error.message
+    });
+  }
 });
 
 // Health check endpoint

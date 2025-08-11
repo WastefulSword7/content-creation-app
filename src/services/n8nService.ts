@@ -39,11 +39,11 @@ class N8nService {
   }
 
   /**
-   * Trigger the account scraping workflow in n8n
+   * Trigger the account scraping workflow via our backend
    */
   async triggerAccountScraping(request: ScrapingRequest): Promise<{ executionId: string; status: string }> {
     try {
-      const response = await fetch(this.webhookUrl, {
+      const response = await fetch(`${this.baseUrl}/api/trigger-scraping`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,9 +52,7 @@ class N8nService {
           sessionName: request.sessionName,
           accountNames: request.accountNames,
           maxVideos: request.maxVideos,
-          userId: request.userId,
-          callbackUrl: `${this.baseUrl}/api/scraping-results`,
-          timestamp: new Date().toISOString()
+          userId: request.userId
         }),
       });
 
@@ -64,11 +62,11 @@ class N8nService {
 
       const result = await response.json();
       return {
-        executionId: result.executionId || Date.now().toString(),
-        status: 'triggered'
+        executionId: result.executionId || result.sessionId || Date.now().toString(),
+        status: result.status || 'triggered'
       };
     } catch (error) {
-      console.error('Failed to trigger n8n workflow:', error);
+      console.error('Failed to trigger scraping workflow:', error);
       throw new Error('Failed to start scraping process');
     }
   }

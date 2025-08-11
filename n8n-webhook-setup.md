@@ -1,81 +1,74 @@
-# N8N Webhook Integration Setup
+# n8n Webhook Setup for Account Scraper
 
-## Overview
-This document explains how to integrate your React app's Account Scraper with your n8n workflow using webhooks.
+## 🎯 Overview
+Your React app now sends scraping requests to your backend server, which then forwards them to n8n. This creates a clean separation and allows for better error handling and session management.
 
-## Current Setup
-Your React app now has:
-- ✅ Account Scraper UI that can trigger scraping
-- ✅ N8N service to communicate with n8n
-- ✅ Backend API endpoints to receive results
-- ✅ Real-time status updates and progress tracking
-
-## What You Need to Do in N8N
+## 🔧 Setup Steps
 
 ### 1. Add Webhook Trigger Node
-In your existing n8n workflow, add a **Webhook** node at the beginning:
+In your n8n workflow (`Real Web Engine.json`):
 
+1. **Add a new "Webhook" node** at the beginning of your workflow
+2. **Configure the webhook:**
+   - **HTTP Method**: POST
+   - **Path**: `/webhook/account-scraper` (or whatever you prefer)
+   - **Response Mode**: Respond to Webhook
+   - **Response Code**: 200
+
+### 2. Connect the Webhook
+- Connect the **Webhook** node to your existing workflow
+- The webhook will receive data from your backend server
+
+### 3. Use Webhook Data in Your Workflow
+The webhook will receive this data structure:
+```json
+{
+  "sessionName": "My Scraping Session",
+  "accountNames": ["account1", "account2"],
+  "maxVideos": 10,
+  "userId": "user123",
+  "sessionId": "session_user123_1234567890",
+  "callbackUrl": "https://your-app.onrender.com/api/scraping-results",
+  "timestamp": "2025-08-10T22:30:00.000Z"
+}
 ```
-[Webhook Trigger] → [Your Existing Scraping Nodes] → [Transcripts1 Node]
-```
 
-### 2. Configure the Webhook Node
-- **Node Name**: `Account Scraper Webhook`
-- **HTTP Method**: `POST`
-- **Path**: `/account-scraper` (or whatever you prefer)
-- **Response Mode**: `Response Node`
-- **Options**: 
-  - Enable "Respond with all data"
-  - Set "Response Code" to `200`
-
-### 3. Connect Webhook to Your Workflow
-- Connect the **Webhook** node to your first scraping node
-- The webhook will receive data from your React app and pass it to your workflow
-
-### 4. Modify Your Workflow to Use Webhook Data
-In your scraping nodes, use the webhook data:
-- `{{ $json.sessionName }}` - Session name from the form
-- `{{ $json.accountNames }}` - Array of account names
-- `{{ $json.maxVideos }}` - Maximum videos to scrape
-- `{{ $json.userId }}` - User ID for tracking
-
-### 5. Update Transcripts1 Node
-Your `Transcripts1` node is already configured to send results back to:
+### 4. Update Your Transcripts1 Node
+Make sure your `Transcripts1` node still posts to:
 ```
 https://content-creation-app-vtio.onrender.com/api/scraping-results
 ```
 
-## Data Flow
-1. **User fills form** → React app
-2. **React app calls** → n8n webhook
-3. **n8n runs workflow** → Scrapes TikTok accounts
-4. **n8n sends results** → Your Render app API
-5. **React app displays** → Results to user
+### 5. Set Environment Variables
+In your Render app, set these environment variables:
+- `N8N_WEBHOOK_URL`: Your n8n webhook URL (e.g., `http://localhost:5678/webhook/account-scraper` for local testing)
 
-## Environment Variables
-Set these in your React app:
-```bash
-REACT_APP_N8N_WEBHOOK_URL=http://your-n8n-url:5678/webhook/account-scraper
-REACT_APP_API_URL=https://content-creation-app-vtio.onrender.com
-```
+## 🔄 How It Works Now
 
-## Testing the Integration
-1. Start your n8n instance
-2. Deploy your updated React app to Render
-3. Fill out the Account Scraper form
-4. Click "Start Scraping"
-5. Watch the real-time progress updates
-6. See results appear when scraping completes
+1. **User clicks "Start Scraping"** on the Account Scraper page
+2. **Frontend sends request** to your backend at `/api/trigger-scraping`
+3. **Backend creates session** and forwards request to n8n webhook
+4. **n8n executes workflow** using the provided data
+5. **n8n sends results** back to your backend at `/api/scraping-results`
+6. **Frontend polls for results** and updates the UI
 
-## Troubleshooting
-- Check n8n execution logs for errors
-- Verify webhook URL is accessible
-- Ensure your Render app can receive POST requests
-- Check browser console for frontend errors
+## 🧪 Testing
 
-## Next Steps
-Once this integration works:
-1. Add similar integration for Hashtag Scraper
-2. Implement database selection in Content Creation
-3. Build video idea generation using scraped data
-4. Create video output organization system
+1. **Start your backend server**: `npm run server`
+2. **Start your frontend**: `npm run dev`
+3. **Set up n8n webhook** as described above
+4. **Test the flow** by clicking "Start Scraping" on the Account Scraper page
+
+## 🚨 Troubleshooting
+
+- **Check backend logs** for webhook forwarding errors
+- **Verify n8n webhook URL** is accessible from your backend
+- **Ensure n8n workflow** is active and connected properly
+- **Check browser console** for frontend errors
+
+## 📝 Notes
+
+- The backend now handles session creation and management
+- Results are stored locally until you implement a database
+- The webhook approach is more reliable than manual execution
+- You can easily add authentication and rate limiting later

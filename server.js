@@ -72,6 +72,15 @@ app.post('/api/scraping-results', (req, res) => {
       processedResults = [req.body];
     }
     
+    // Flatten nested results arrays (n8n sometimes sends double-nested results)
+    if (processedResults && processedResults.length > 0) {
+      // Check if the first item has a nested "results" array
+      if (processedResults[0].results && Array.isArray(processedResults[0].results)) {
+        console.log('Flattening nested results array');
+        processedResults = processedResults[0].results;
+      }
+    }
+    
     const sessionData = {
       id: sessionId,
       name: sessionName || `Scraping Session ${new Date().toLocaleString()}`,

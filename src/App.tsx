@@ -11,7 +11,7 @@ import HashtagScraper from './pages/HashtagScraper';
 import AccountScraper from './pages/AccountScraper';
 import ContentCreation from './pages/ContentCreation';
 import VideoLibrary from './pages/VideoLibrary';
-import DataManager from './pages/DataManager';
+import DatabaseManager from './pages/DatabaseManager';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const theme = createTheme({
@@ -88,7 +88,7 @@ const AppContent: React.FC = () => {
           } />
           <Route path="/content-creation" element={<ContentCreation />} />
           <Route path="/video-library" element={<VideoLibrary />} />
-          <Route path="/data-manager" element={<DataManager />} />
+          <Route path="/database-manager" element={<DatabaseManager />} />
         </Routes>
       </Layout>
     </Router>

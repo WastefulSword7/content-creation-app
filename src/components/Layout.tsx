@@ -5,9 +5,9 @@ import TagIcon from '@mui/icons-material/Tag';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import CreateIcon from '@mui/icons-material/Create';
+import StorageIcon from '@mui/icons-material/Storage';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
-import StorageIcon from '@mui/icons-material/Storage';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Account Scraper', icon: <AccountCircleIcon />, path: '/account-scraper' },
     { text: 'Content Creation', icon: <CreateIcon />, path: '/content-creation' },
     { text: 'Video Library', icon: <VideoLibraryIcon />, path: '/video-library' },
-    { text: 'Data Manager', icon: <StorageIcon />, path: '/data-manager' },
+    { text: 'Database Manager', icon: <StorageIcon />, path: '/database-manager' },
   ];
 
   const handleDrawerToggle = () => {

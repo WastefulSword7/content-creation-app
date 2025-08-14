@@ -28,9 +28,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Character Creator', icon: <PersonAddIcon />, path: '/' },
     { text: 'Hashtag Scraper', icon: <TagIcon />, path: '/hashtag-scraper' },
     { text: 'Account Scraper', icon: <AccountCircleIcon />, path: '/account-scraper' },
-    { text: 'Database Manager', icon: <StorageIcon />, path: '/database-manager' },
     { text: 'Content Creation', icon: <CreateIcon />, path: '/content-creation' },
     { text: 'Video Library', icon: <VideoLibraryIcon />, path: '/video-library' },
+    { text: 'Data Manager', icon: <StorageIcon />, path: '/data-manager' },
   ];
 
   const handleDrawerToggle = () => {

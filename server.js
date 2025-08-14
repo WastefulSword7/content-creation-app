@@ -139,11 +139,6 @@ app.get('/api/scraping-sessions', (req, res) => {
   });
 });
 
-// API endpoint to get all scraping results (for DatabaseManager)
-app.get('/api/scraping-results', (req, res) => {
-  res.json(scrapingSessions);
-});
-
 // API endpoint to get a specific scraping session
 app.get('/api/scraping-sessions/:sessionId', (req, res) => {
   const session = scrapingSessions.find(s => s.id === req.params.sessionId);
@@ -268,35 +263,59 @@ app.get('/api/n8n-proxy-test', (req, res) => {
   });
 });
 
-// Update a session
-app.put('/api/scraping-results/:sessionId', (req, res) => {
-  const { sessionId } = req.params;
-  const sessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
+// Update a specific scraping result
+app.put('/api/scraping-results/:id', (req, res) => {
+  const { id } = req.params;
+  const updatedResult = req.body;
   
-  if (sessionIndex === -1) {
-    return res.status(404).json({ error: 'Session not found' });
+  console.log('Updating scraping result:', id, updatedResult);
+  
+  const resultIndex = scrapingResults.findIndex(r => r.id === id);
+  if (resultIndex === -1) {
+    return res.status(404).json({ error: 'Result not found' });
   }
   
-  const updatedSession = { ...scrapingSessions[sessionIndex], ...req.body };
-  scrapingSessions[sessionIndex] = updatedSession;
+  // Update the result
+  scrapingResults[resultIndex] = {
+    ...scrapingResults[resultIndex],
+    ...updatedResult,
+    updatedAt: new Date().toISOString()
+  };
   
-  console.log('Updated session:', updatedSession);
-  res.json(updatedSession);
+  // Also update the corresponding session
+  const sessionIndex = scrapingSessions.findIndex(s => s.id === id);
+  if (sessionIndex !== -1) {
+    scrapingSessions[sessionIndex] = {
+      ...scrapingSessions[sessionIndex],
+      results: updatedResult.results,
+      updatedAt: new Date().toISOString()
+    };
+  }
+  
+  res.json(scrapingResults[resultIndex]);
 });
 
-// Delete a session
-app.delete('/api/scraping-results/:sessionId', (req, res) => {
-  const { sessionId } = req.params;
-  const sessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
+// Delete a specific scraping result
+app.delete('/api/scraping-results/:id', (req, res) => {
+  const { id } = req.params;
   
-  if (sessionIndex === -1) {
-    return res.status(404).json({ error: 'Session not found' });
+  console.log('Deleting scraping result:', id);
+  
+  const resultIndex = scrapingResults.findIndex(r => r.id === id);
+  if (resultIndex === -1) {
+    return res.status(404).json({ error: 'Result not found' });
   }
   
-  const deletedSession = scrapingSessions.splice(sessionIndex, 1)[0];
-  console.log('Deleted session:', deletedSession);
+  // Remove from results array
+  scrapingResults.splice(resultIndex, 1);
   
-  res.json({ message: 'Session deleted successfully' });
+  // Also remove from sessions array
+  const sessionIndex = scrapingSessions.findIndex(s => s.id === id);
+  if (sessionIndex !== -1) {
+    scrapingSessions.splice(sessionIndex, 1);
+  }
+  
+  res.json({ message: 'Result deleted successfully' });
 });
 
 // Catch-all handler: send back React's index.html file for any non-API routes

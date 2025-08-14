@@ -139,6 +139,11 @@ app.get('/api/scraping-sessions', (req, res) => {
   });
 });
 
+// API endpoint to get all scraping results (for DatabaseManager)
+app.get('/api/scraping-results', (req, res) => {
+  res.json(scrapingSessions);
+});
+
 // API endpoint to get a specific scraping session
 app.get('/api/scraping-sessions/:sessionId', (req, res) => {
   const session = scrapingSessions.find(s => s.id === req.params.sessionId);
@@ -261,6 +266,37 @@ app.get('/api/n8n-proxy-test', (req, res) => {
     message: 'n8n proxy endpoint is accessible',
     timestamp: new Date().toISOString()
   });
+});
+
+// Update a session
+app.put('/api/scraping-results/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const sessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
+  
+  if (sessionIndex === -1) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  const updatedSession = { ...scrapingSessions[sessionIndex], ...req.body };
+  scrapingSessions[sessionIndex] = updatedSession;
+  
+  console.log('Updated session:', updatedSession);
+  res.json(updatedSession);
+});
+
+// Delete a session
+app.delete('/api/scraping-results/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const sessionIndex = scrapingSessions.findIndex(s => s.id === sessionId);
+  
+  if (sessionIndex === -1) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  const deletedSession = scrapingSessions.splice(sessionIndex, 1)[0];
+  console.log('Deleted session:', deletedSession);
+  
+  res.json({ message: 'Session deleted successfully' });
 });
 
 // Catch-all handler: send back React's index.html file for any non-API routes

@@ -7,6 +7,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import CreateIcon from '@mui/icons-material/Create';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
+import StorageIcon from '@mui/icons-material/Storage';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Character Creator', icon: <PersonAddIcon />, path: '/' },
     { text: 'Hashtag Scraper', icon: <TagIcon />, path: '/hashtag-scraper' },
     { text: 'Account Scraper', icon: <AccountCircleIcon />, path: '/account-scraper' },
+    { text: 'Database Manager', icon: <StorageIcon />, path: '/database-manager' },
     { text: 'Content Creation', icon: <CreateIcon />, path: '/content-creation' },
     { text: 'Video Library', icon: <VideoLibraryIcon />, path: '/video-library' },
   ];

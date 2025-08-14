@@ -31,7 +31,7 @@ import {
   Cancel as CancelIcon,
   ContentCopy as CopyIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+
 
 interface ScrapingResult {
   id: string;
@@ -61,7 +61,6 @@ interface ScrapingSession {
 }
 
 const DatabaseManager: React.FC = () => {
-  const { user } = useAuth();
   const [sessions, setSessions] = useState<ScrapingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

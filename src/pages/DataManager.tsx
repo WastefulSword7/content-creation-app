@@ -23,14 +23,13 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  SelectChangeEvent
+  MenuItem
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 

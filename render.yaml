@@ -2,9 +2,11 @@ services:
   - type: web
     name: content-creation-app
     env: node
-    buildCommand: npm install
+    buildCommand: npm install && npm run build:prod
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=4096
     healthCheckPath: /health

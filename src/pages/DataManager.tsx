@@ -25,7 +25,6 @@ import {
   Select,
   MenuItem
 } from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -259,7 +258,7 @@ const DataManager: React.FC = () => {
           <Select
             value={sessionFilter}
             label="Session Filter"
-            onChange={(e: SelectChangeEvent) => setSessionFilter(e.target.value)}
+            onChange={(e) => setSessionFilter(e.target.value)}
           >
             <MenuItem value="all">All Sessions</MenuItem>
             {getUniqueSessionNames().map(name => (

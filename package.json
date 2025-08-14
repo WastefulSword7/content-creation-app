@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:optimized": "node --max-old-space-size=4096 ./node_modules/.bin/vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "start": "npm run build && node server.js",
+    "start": "npm run build:optimized && node server.js",
     "dev:full": "concurrently \"npm run dev\" \"npm run server\""
   },
   "devDependencies": {

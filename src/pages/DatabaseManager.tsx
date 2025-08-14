@@ -23,14 +23,12 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  ExpandMore as ExpandMoreIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  ContentCopy as CopyIcon
-} from '@mui/icons-material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 
 interface ScrapingResult {
@@ -281,7 +279,7 @@ const DatabaseManager: React.FC = () => {
                                           size="small" 
                                           onClick={() => copyToClipboard(result.text!)}
                                         >
-                                          <CopyIcon fontSize="small" />
+                                          <ContentCopyIcon fontSize="small" />
                                         </IconButton>
                                       </Box>
                                     </Box>
@@ -303,7 +301,7 @@ const DatabaseManager: React.FC = () => {
                                           size="small" 
                                           onClick={() => copyToClipboard(result.transcript!)}
                                         >
-                                          <CopyIcon fontSize="small" />
+                                          <ContentCopyIcon fontSize="small" />
                                         </IconButton>
                                       </Box>
                                     </Box>

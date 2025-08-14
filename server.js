@@ -20,7 +20,7 @@ try {
 } catch (error) {
   console.log('Dist folder not found, building React app...');
   try {
-    execSync('npm run build', { stdio: 'inherit' });
+    execSync('npm run build:optimized', { stdio: 'inherit' });
     console.log('React app built successfully');
   } catch (buildError) {
     console.error('Failed to build React app:', buildError);

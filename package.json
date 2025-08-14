@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:prod": "NODE_OPTIONS=\"--max-old-space-size=4096\" tsc && vite build",
+    "build:simple": "tsc && vite build --mode production",
     "preview": "vite preview",
     "server": "node server.js",
-    "start": "npm run build && node server.js",
+    "start": "npm run build:simple && node server.js",
     "dev:full": "concurrently \"npm run dev\" \"npm run server\""
   },
   "devDependencies": {

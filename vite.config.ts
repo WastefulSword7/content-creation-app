@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Optimize build performance
     target: 'es2020',
     minify: 'esbuild',
     rollupOptions: {
@@ -15,7 +14,6 @@ export default defineConfig({
         },
       },
     },
-    // Increase memory limit for build
     chunkSizeWarningLimit: 1000,
   },
   optimizeDeps: {

@@ -145,7 +145,27 @@ class N8nService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('Raw backend response:', data);
+      
+      // The backend returns an object with a results property
+      // We need to extract and transform the results
+      if (data && data.results && Array.isArray(data.results)) {
+        // Transform the backend data format to match our frontend format
+        return data.results.map((item: any, index: number) => ({
+          id: `${sessionId}_${index}`,
+          account: data.metadata?.accountNames?.[0] || 'Unknown',
+          videoUrl: `#${index + 1}`,
+          transcript: item.transcript || '',
+          caption: item.transcript || '', // Use transcript as caption for now
+          views: 0, // Not available in current data
+          likes: 0, // Not available in current data
+          followers: 0 // Not available in current data
+        }));
+      }
+      
+      console.log('No results found in response');
+      return [];
     } catch (error) {
       console.error('Failed to fetch scraping results:', error);
       return [];

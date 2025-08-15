@@ -3,7 +3,6 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
 import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,20 +11,16 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Check if dist folder exists, if not build the app
+// Check if dist folder exists, if not exit gracefully
 const distPath = path.join(__dirname, 'dist');
 try {
   await fs.access(distPath);
   console.log('Dist folder found, serving existing build');
 } catch (error) {
-  console.log('Dist folder not found, building React app...');
-  try {
-    execSync('npm run build', { stdio: 'inherit' });
-    console.log('React app built successfully');
-  } catch (buildError) {
-    console.error('Failed to build React app:', buildError);
-    process.exit(1);
-  }
+  console.log('Dist folder not found. This app requires a pre-built React app.');
+  console.log('Please ensure the dist folder is included in your deployment.');
+  console.log('For Render deployment, the build should happen during the build phase, not runtime.');
+  process.exit(1);
 }
 
 // Middleware
@@ -261,61 +256,6 @@ app.get('/api/n8n-proxy-test', (req, res) => {
     message: 'n8n proxy endpoint is accessible',
     timestamp: new Date().toISOString()
   });
-});
-
-// Update a specific scraping result
-app.put('/api/scraping-results/:id', (req, res) => {
-  const { id } = req.params;
-  const updatedResult = req.body;
-  
-  console.log('Updating scraping result:', id, updatedResult);
-  
-  const resultIndex = scrapingResults.findIndex(r => r.id === id);
-  if (resultIndex === -1) {
-    return res.status(404).json({ error: 'Result not found' });
-  }
-  
-  // Update the result
-  scrapingResults[resultIndex] = {
-    ...scrapingResults[resultIndex],
-    ...updatedResult,
-    updatedAt: new Date().toISOString()
-  };
-  
-  // Also update the corresponding session
-  const sessionIndex = scrapingSessions.findIndex(s => s.id === id);
-  if (sessionIndex !== -1) {
-    scrapingSessions[sessionIndex] = {
-      ...scrapingSessions[sessionIndex],
-      results: updatedResult.results,
-      updatedAt: new Date().toISOString()
-    };
-  }
-  
-  res.json(scrapingResults[resultIndex]);
-});
-
-// Delete a specific scraping result
-app.delete('/api/scraping-results/:id', (req, res) => {
-  const { id } = req.params;
-  
-  console.log('Deleting scraping result:', id);
-  
-  const resultIndex = scrapingResults.findIndex(r => r.id === id);
-  if (resultIndex === -1) {
-    return res.status(404).json({ error: 'Result not found' });
-  }
-  
-  // Remove from results array
-  scrapingResults.splice(resultIndex, 1);
-  
-  // Also remove from sessions array
-  const sessionIndex = scrapingSessions.findIndex(s => s.id === id);
-  if (sessionIndex !== -1) {
-    scrapingSessions.splice(sessionIndex, 1);
-  }
-  
-  res.json({ message: 'Result deleted successfully' });
 });
 
 // Catch-all handler: send back React's index.html file for any non-API routes

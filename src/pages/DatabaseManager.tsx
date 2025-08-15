@@ -74,13 +74,20 @@ const DatabaseManager: React.FC = () => {
     
     setLoading(true);
     try {
+      console.log('🔍 DatabaseManager: Starting to fetch sessions from backend...');
+      
       // Use the proper backend endpoint to get all sessions
       const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/scraping-sessions`);
+      console.log('🔍 DatabaseManager: Response status:', response.status);
+      console.log('🔍 DatabaseManager: Response headers:', response.headers);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('Backend sessions response:', data);
+        console.log('🔍 DatabaseManager: Backend sessions response:', data);
         
         if (data.success && data.sessions && Array.isArray(data.sessions)) {
+          console.log('🔍 DatabaseManager: Found', data.sessions.length, 'sessions');
+          
           // Transform backend sessions to match our frontend format
           const transformedSessions: ScrapingSession[] = data.sessions.map((session: any) => ({
             id: session.id,
@@ -95,16 +102,21 @@ const DatabaseManager: React.FC = () => {
             }
           }));
           
-          console.log('Transformed sessions:', transformedSessions);
+          console.log('🔍 DatabaseManager: Transformed sessions:', transformedSessions);
           setSessions(transformedSessions);
           setFilteredSessions(transformedSessions);
         } else {
-          console.log('No sessions found or invalid response format');
+          console.log('🔍 DatabaseManager: No sessions found or invalid response format');
+          console.log('🔍 DatabaseManager: data.success:', data.success);
+          console.log('🔍 DatabaseManager: data.sessions:', data.sessions);
+          console.log('🔍 DatabaseManager: Array.isArray(data.sessions):', Array.isArray(data.sessions));
           setSessions([]);
           setFilteredSessions([]);
         }
       } else {
-        console.error('Failed to fetch sessions:', response.status);
+        console.error('🔍 DatabaseManager: Failed to fetch sessions:', response.status);
+        const errorText = await response.text();
+        console.error('🔍 DatabaseManager: Error response body:', errorText);
         setSnackbar({
           open: true,
           message: 'Failed to load sessions from backend',
@@ -112,7 +124,7 @@ const DatabaseManager: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to load sessions from backend:', error);
+      console.error('🔍 DatabaseManager: Failed to load sessions from backend:', error);
       setSnackbar({
         open: true,
         message: 'Failed to load sessions from backend',
@@ -277,6 +289,19 @@ const DatabaseManager: React.FC = () => {
             disabled={loading}
           >
             {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          
+          {/* Test button to debug API */}
+          <Button
+            variant="outlined"
+            onClick={() => {
+              console.log('🧪 Testing API call manually...');
+              loadSessionsFromBackend();
+            }}
+            disabled={loading}
+            sx={{ ml: 1 }}
+          >
+            Test API
           </Button>
           <Chip 
             label={`${filteredSessions.length} sessions`} 

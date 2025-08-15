@@ -77,7 +77,7 @@ const DatabaseManager: React.FC = () => {
       console.log('🔍 DatabaseManager: Starting to fetch sessions from backend...');
       
       // Use the proper backend endpoint to get all sessions
-      const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/scraping-sessions`);
+      const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/sessions-proxy`);
       console.log('🔍 DatabaseManager: Response status:', response.status);
       console.log('🔍 DatabaseManager: Response headers:', response.headers);
       

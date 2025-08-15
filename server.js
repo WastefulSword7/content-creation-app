@@ -258,6 +258,31 @@ app.get('/api/n8n-proxy-test', (req, res) => {
   });
 });
 
+// Proxy endpoint for sessions API (solves CORS issue)
+app.get('/api/sessions-proxy', (req, res) => {
+  try {
+    console.log('=== SESSIONS PROXY REQUEST ===');
+    
+    // Return the sessions data through our proxy
+    res.json({
+      success: true,
+      sessions: scrapingSessions,
+      totalSessions: scrapingSessions.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('=== SESSIONS PROXY ERROR ===');
+    console.error('Error details:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get sessions',
+      error: error.message
+    });
+  }
+});
+
 // Catch-all handler: send back React's index.html file for any non-API routes
 // This is needed for React Router to work properly
 app.get('*', (req, res) => {

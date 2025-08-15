@@ -74,26 +74,42 @@ const DatabaseManager: React.FC = () => {
     
     setLoading(true);
     try {
-      // For now, we'll need to implement a backend endpoint to list all sessions
-      // For now, let's try to fetch the specific session we know exists
-      const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/results/session_1754865152389_degecoin`);
+      // Use the proper backend endpoint to get all sessions
+      const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/scraping-sessions`);
       if (response.ok) {
-        const sessionData = await response.json();
-        // Transform the backend data to match our frontend format
-        const session: ScrapingSession = {
-          id: 'session_1754865152389_degecoin',
-          name: 'degecoin',
-          type: 'account',
-          data: sessionData.results || [],
-          dateCreated: new Date().toISOString(),
-          status: 'completed',
-          metadata: {
-            accountNames: ['Jdoyle.tradez', 'jdtradez_', 'luke_trades2', 'kassidycrypto'],
-            maxVideos: 20
-          }
-        };
-        setSessions([session]);
-        setFilteredSessions([session]);
+        const data = await response.json();
+        console.log('Backend sessions response:', data);
+        
+        if (data.success && data.sessions && Array.isArray(data.sessions)) {
+          // Transform backend sessions to match our frontend format
+          const transformedSessions: ScrapingSession[] = data.sessions.map((session: any) => ({
+            id: session.id,
+            name: session.name,
+            type: session.type || 'account',
+            data: session.results || [],
+            dateCreated: session.timestamp || new Date().toISOString(),
+            status: session.status || 'completed',
+            metadata: {
+              accountNames: session.metadata?.accountNames || [],
+              maxVideos: session.metadata?.maxVideos || 0
+            }
+          }));
+          
+          console.log('Transformed sessions:', transformedSessions);
+          setSessions(transformedSessions);
+          setFilteredSessions(transformedSessions);
+        } else {
+          console.log('No sessions found or invalid response format');
+          setSessions([]);
+          setFilteredSessions([]);
+        }
+      } else {
+        console.error('Failed to fetch sessions:', response.status);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load sessions from backend',
+          severity: 'error'
+        });
       }
     } catch (error) {
       console.error('Failed to load sessions from backend:', error);

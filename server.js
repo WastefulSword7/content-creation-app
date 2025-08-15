@@ -11,6 +11,43 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Rate limiting
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 100; // 100 requests per minute
+
+// Rate limiting middleware
+const rateLimit = (req, res, next) => {
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+  
+  if (!requestCounts.has(clientIP)) {
+    requestCounts.set(clientIP, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+  } else {
+    const clientData = requestCounts.get(clientIP);
+    
+    if (now > clientData.resetTime) {
+      // Reset window
+      clientData.count = 1;
+      clientData.resetTime = now + RATE_LIMIT_WINDOW;
+    } else if (clientData.count >= MAX_REQUESTS_PER_WINDOW) {
+      // Rate limit exceeded
+      return res.status(429).json({
+        success: false,
+        message: 'Rate limit exceeded. Please try again later.',
+        retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
+      });
+    } else {
+      clientData.count++;
+    }
+  }
+  
+  next();
+};
+
+// Apply rate limiting to all routes
+app.use(rateLimit);
+
 // Check if dist folder exists, if not exit gracefully
 const distPath = path.join(__dirname, 'dist');
 try {
@@ -42,40 +79,91 @@ app.use((req, res, next) => {
 });
 
 // API endpoint to receive scraping results from n8n
-app.post('/api/scraping-results', (req, res) => {
-  console.log('=== SCRAPING RESULTS RECEIVED ===');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  
+app.post('/api/scraping-results', async (req, res) => {
   try {
-    // Extract session info from the request
+    console.log('=== SCRAPING RESULTS RECEIVED ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    // Input validation
     const { sessionName, accountNames, maxVideos, userId, results } = req.body;
     
-    // Create a session ID that matches what the frontend expects
-    // Use the sessionName and userId to create a predictable ID
-    const sessionId = `session_${userId || 'unknown'}_${sessionName?.replace(/[^a-zA-Z0-9]/g, '_') || 'default'}`;
-    
-    // Process the results - handle both array and object formats
-    let processedResults = results;
-    if (Array.isArray(req.body)) {
-      // If the body is directly an array of results
-      processedResults = req.body;
-    } else if (results && Array.isArray(results)) {
-      // If results are nested in the body
-      processedResults = results;
-    } else {
-      // Fallback: treat the entire body as results
-      processedResults = [req.body];
+    // Check for required fields
+    if (!sessionName || !accountNames || !results) {
+      console.error('Missing required fields:', { sessionName, accountNames, results });
+      return res.status(422).json({
+        success: false,
+        message: 'Missing required fields: sessionName, accountNames, and results are required'
+      });
     }
     
-    // Flatten nested results arrays (n8n sometimes sends double-nested results)
-    if (processedResults && processedResults.length > 0) {
-      // Check if the first item has a nested "results" array
-      if (processedResults[0].results && Array.isArray(processedResults[0].results)) {
-        console.log('Flattening nested results array');
-        processedResults = processedResults[0].results;
+    // Validate data types and sizes
+    if (typeof sessionName !== 'string' || sessionName.trim().length === 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'sessionName must be a non-empty string'
+      });
+    }
+    
+    if (!Array.isArray(accountNames) || accountNames.length === 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'accountNames must be a non-empty array'
+      });
+    }
+    
+    if (!Array.isArray(results) || results.length === 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'results must be a non-empty array'
+      });
+    }
+    
+    // Check payload size (limit to 10MB)
+    const payloadSize = JSON.stringify(req.body).length;
+    const maxPayloadSize = 10 * 1024 * 1024; // 10MB
+    if (payloadSize > maxPayloadSize) {
+      console.error('Payload too large:', payloadSize, 'bytes');
+      return res.status(413).json({
+        success: false,
+        message: 'Payload too large. Maximum size is 10MB'
+      });
+    }
+    
+    // Validate maxVideos if provided
+    if (maxVideos !== undefined) {
+      if (typeof maxVideos !== 'number' || maxVideos < 1 || maxVideos > 1000) {
+        return res.status(422).json({
+          success: false,
+          message: 'maxVideos must be a number between 1 and 1000'
+        });
       }
     }
     
+    // Validate userId if provided
+    if (userId !== undefined && (typeof userId !== 'string' || userId.trim().length === 0)) {
+      return res.status(422).json({
+        success: false,
+        message: 'userId must be a non-empty string if provided'
+      });
+    }
+    
+    console.log('Input validation passed');
+    
+    // Process the results (existing logic)
+    const processedResults = results.flatMap(item => {
+      if (item.results && Array.isArray(item.results)) {
+        return item.results;
+      }
+      return item;
+    });
+    
+    console.log(`Flattening nested results array`);
+    console.log(`Processed ${processedResults.length} results`);
+    
+    // Create session ID
+    const sessionId = `session_${userId || Date.now()}_${sessionName}`;
+    
+    // Create session data
     const sessionData = {
       id: sessionId,
       name: sessionName || `Scraping Session ${new Date().toLocaleString()}`,
@@ -178,6 +266,96 @@ app.post('/api/n8n-proxy', async (req, res) => {
   try {
     console.log('=== N8N PROXY REQUEST ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    // Input validation
+    if (!req.body || typeof req.body !== 'object') {
+      console.error('Invalid request body');
+      return res.status(422).json({
+        success: false,
+        message: 'Request body must be a valid JSON object'
+      });
+    }
+    
+    // Check payload size (limit to 5MB for n8n requests)
+    const payloadSize = JSON.stringify(req.body).length;
+    const maxPayloadSize = 5 * 1024 * 1024; // 5MB
+    if (payloadSize > maxPayloadSize) {
+      console.error('Payload too large:', payloadSize, 'bytes');
+      return res.status(413).json({
+        success: false,
+        message: 'Payload too large. Maximum size is 5MB'
+      });
+    }
+    
+    // Validate required fields for account scraper
+    if (!req.body.accountNames && !req.body.hashtags) {
+      return res.status(422).json({
+        success: false,
+        message: 'Either accountNames or hashtags must be provided'
+      });
+    }
+    
+    // Validate accountNames if provided
+    if (req.body.accountNames) {
+      if (!Array.isArray(req.body.accountNames) || req.body.accountNames.length === 0) {
+        return res.status(422).json({
+          success: false,
+          message: 'accountNames must be a non-empty array'
+        });
+      }
+      
+      // Validate each account name
+      for (const account of req.body.accountNames) {
+        if (typeof account !== 'string' || account.trim().length === 0) {
+          return res.status(422).json({
+            success: false,
+            message: 'Each account name must be a non-empty string'
+          });
+        }
+      }
+    }
+    
+    // Validate hashtags if provided
+    if (req.body.hashtags) {
+      if (!Array.isArray(req.body.hashtags) || req.body.hashtags.length === 0) {
+        return res.status(422).json({
+          success: false,
+          message: 'hashtags must be a non-empty array'
+        });
+      }
+      
+      // Validate each hashtag
+      for (const hashtag of req.body.hashtags) {
+        if (typeof hashtag !== 'string' || hashtag.trim().length === 0) {
+          return res.status(422).json({
+            success: false,
+            message: 'Each hashtag must be a non-empty string'
+          });
+        }
+      }
+    }
+    
+    // Validate maxVideos if provided
+    if (req.body.maxVideos !== undefined) {
+      if (typeof req.body.maxVideos !== 'number' || req.body.maxVideos < 1 || req.body.maxVideos > 1000) {
+        return res.status(422).json({
+          success: false,
+          message: 'maxVideos must be a number between 1 and 1000'
+        });
+      }
+    }
+    
+    // Validate sessionName if provided
+    if (req.body.sessionName !== undefined) {
+      if (typeof req.body.sessionName !== 'string' || req.body.sessionName.trim().length === 0) {
+        return res.status(422).json({
+          success: false,
+          message: 'sessionName must be a non-empty string if provided'
+        });
+      }
+    }
+    
+    console.log('Input validation passed');
     console.log('Forwarding request to n8n webhook...');
     
     // Determine which webhook to use based on request type

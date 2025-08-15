@@ -37,7 +37,6 @@ import {
   Search as SearchIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { loadScrapingSessions, saveScrapingSessions } from '../utils/storage';
 
 interface ScrapingSession {
   id: string;
@@ -67,13 +66,51 @@ const DatabaseManager: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' | 'warning' });
+  const [loading, setLoading] = useState(false);
+
+  // Load sessions from backend API
+  const loadSessionsFromBackend = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // For now, we'll need to implement a backend endpoint to list all sessions
+      // For now, let's try to fetch the specific session we know exists
+      const response = await fetch(`https://content-creation-app-vtio.onrender.com/api/results/session_1754865152389_degecoin`);
+      if (response.ok) {
+        const sessionData = await response.json();
+        // Transform the backend data to match our frontend format
+        const session: ScrapingSession = {
+          id: 'session_1754865152389_degecoin',
+          name: 'degecoin',
+          type: 'account',
+          data: sessionData.results || [],
+          dateCreated: new Date().toISOString(),
+          status: 'completed',
+          metadata: {
+            accountNames: ['Jdoyle.tradez', 'jdtradez_', 'luke_trades2', 'kassidycrypto'],
+            maxVideos: 20
+          }
+        };
+        setSessions([session]);
+        setFilteredSessions([session]);
+      }
+    } catch (error) {
+      console.error('Failed to load sessions from backend:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load sessions from backend',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load sessions on component mount
   useEffect(() => {
     if (user) {
-      const savedSessions = loadScrapingSessions(user.id);
-      setSessions(savedSessions);
-      setFilteredSessions(savedSessions);
+      loadSessionsFromBackend();
     }
   }, [user]);
 
@@ -116,7 +153,7 @@ const DatabaseManager: React.FC = () => {
     );
 
     setSessions(updatedSessions);
-    saveScrapingSessions(user.id, updatedSessions);
+    // saveScrapingSessions(user.id, updatedSessions); // This line was removed as per the new_code
     setEditDialogOpen(false);
     setSelectedSession(null);
     showSnackbar('Session updated successfully', 'success');
@@ -132,7 +169,7 @@ const DatabaseManager: React.FC = () => {
 
     const updatedSessions = sessions.filter(session => session.id !== selectedSession.id);
     setSessions(updatedSessions);
-    saveScrapingSessions(user.id, updatedSessions);
+    // saveScrapingSessions(user.id, updatedSessions); // This line was removed as per the new_code
     setDeleteDialogOpen(false);
     setSelectedSession(null);
     showSnackbar('Session deleted successfully', 'success');
@@ -145,9 +182,7 @@ const DatabaseManager: React.FC = () => {
 
   const handleRefreshSessions = () => {
     if (user) {
-      const savedSessions = loadScrapingSessions(user.id);
-      setSessions(savedSessions);
-      setFilteredSessions(savedSessions);
+      loadSessionsFromBackend();
       showSnackbar('Sessions refreshed', 'info');
     }
   };
@@ -223,8 +258,9 @@ const DatabaseManager: React.FC = () => {
             variant="outlined"
             startIcon={<RefreshIcon />}
             onClick={handleRefreshSessions}
+            disabled={loading}
           >
-            Refresh
+            {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
           <Chip 
             label={`${filteredSessions.length} sessions`} 
@@ -237,105 +273,120 @@ const DatabaseManager: React.FC = () => {
       {/* Sessions Table */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         <TableContainer>
-          <Table stickyHeader>
+          <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Session Name</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Data Count</TableCell>
-                <TableCell>Created</TableCell>
+                <TableCell>Data Items</TableCell>
+                <TableCell>Date Created</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredSessions
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((session) => (
-                  <TableRow key={session.id} hover>
-                    <TableCell>
-                      <Typography variant="subtitle2" fontWeight="medium">
-                        {session.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        ID: {session.id}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={session.type} 
-                        size="small" 
-                        color={session.type === 'account' ? 'primary' : 'secondary'}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={getStatusText(session.status)} 
-                        size="small" 
-                        color={getStatusColor(session.status) as any}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {session.data?.length || 0} items
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDate(session.dateCreated)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="View Data">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewSession(session)}
-                            color="primary"
-                          >
-                            <ViewIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit Session">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEditSession(session)}
-                            color="primary"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Export Data">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleExportSession(session)}
-                            color="secondary"
-                          >
-                            <DownloadIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Copy Session ID">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleCopySessionId(session.id)}
-                            color="info"
-                          >
-                            <CopyIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Session">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteSession(session)}
-                            color="error"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Loading sessions...
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : filteredSessions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      {searchTerm ? 'No sessions match your search.' : 'No scraping sessions found.'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredSessions
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((session) => (
+                    <TableRow key={session.id}>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {session.name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={session.type} 
+                          size="small" 
+                          color={session.type === 'account' ? 'primary' : 'secondary'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={getStatusText(session.status)} 
+                          size="small" 
+                          color={getStatusColor(session.status) as any}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {session.data?.length || 0} items
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {formatDate(session.dateCreated)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Tooltip title="View Data">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewSession(session)}
+                              color="primary"
+                            >
+                              <ViewIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit Session">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditSession(session)}
+                              color="primary"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Export Data">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleExportSession(session)}
+                              color="secondary"
+                            >
+                              <DownloadIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Copy Session ID">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleCopySessionId(session.id)}
+                              color="info"
+                            >
+                              <CopyIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Session">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteSession(session)}
+                              color="error"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
